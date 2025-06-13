@@ -11,3 +11,9 @@ langchain-google-genai
 langchain-community
 faiss-cpu
 sentence-transformers
+
+streamlit
+langchain
+langchain-core
+langchain-google-genai
+duckduckgo-search
