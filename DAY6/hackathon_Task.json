@@ -1,0 +1,399 @@
+{
+  "name": "hackathon Task",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1fyl8t9veioi4wQUtGbN2RLbGkianEJApaHbxaDUY6Ms",
+          "mode": "list",
+          "cachedResultName": "n8nhack",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1fyl8t9veioi4wQUtGbN2RLbGkianEJApaHbxaDUY6Ms/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "hack",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1fyl8t9veioi4wQUtGbN2RLbGkianEJApaHbxaDUY6Ms/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Student Name": "={{ $json.body['Student Name'] }}",
+            "Department": "={{ $json.body.Department }}",
+            "Placement %": "={{ $json.body['Placement %'] }}",
+            "Attendance %": "={{ $json.body['Attendance %'] }}",
+            "Form Score": "={{ $json.body['Form Score'] }}",
+            "Date": "={{ $json.body.Date }}"
+          },
+          "matchingColumns": [
+            "Student Name"
+          ],
+          "schema": [
+            {
+              "id": "Student Name",
+              "displayName": "Student Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Department",
+              "displayName": "Department",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Placement %",
+              "displayName": "Placement %",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Attendance %",
+              "displayName": "Attendance %",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Form Score",
+              "displayName": "Form Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        40,
+        120
+      ],
+      "id": "a270c7c0-9edb-4647-b011-8994ddef6da5",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "oOtWNPPBK9HlEYwd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items\n  .filter(item => item.json['Student Name'])  // Skip empty rows\n  .map(item => {\n    item.json['Placement %'] = parseFloat(item.json['Placement %']);\n    item.json['Attendance %'] = parseFloat(item.json['Attendance %']);\n    item.json['Form Score'] = parseFloat(item.json['Form Score']);\n    item.json['Date'] = new Date(item.json['Date']).toISOString().split('T')[0]; // Clean date\n    return item;\n  });\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        0
+      ],
+      "id": "5bfad3f8-8bd1-40ad-8060-98389a623bc7",
+      "name": "Clean data"
+    },
+    {
+      "parameters": {
+        "jsCode": "let totalPlacement = 0;\nlet totalAttendance = 0;\nlet totalForm = 0;\nlet count = items.length;\n\nitems.forEach(item => {\n  totalPlacement += item.json['Placement %'];\n  totalAttendance += item.json['Attendance %'];\n  totalForm += item.json['Form Score'];\n});\n\nreturn [\n  {\n    json: {\n      average_placement: (totalPlacement / count).toFixed(2),\n      average_attendance: (totalAttendance / count).toFixed(2),\n      average_formscore: (totalForm / count).toFixed(2),\n      student_count: count\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        0
+      ],
+      "id": "10c4c96e-a4fc-4708-8f9a-e403929759df",
+      "name": "Calculate Averages"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        260
+      ],
+      "id": "51d6b8f2-fe38-4fdf-ac8b-c3289f83d239",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "1IrxteWgpPwB8f2w",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a student performance analyst.\n\nBelow is the individual student data:\n{{ $json }}\n\nIdentify students with any of the following issues:\n- Placement % < 60\n- Attendance % < 70\n- Form Score < 60\n\nReturn results in bullet format like:\n- [Student Name] has low [Metric] (Value%)\n- ...\n\nMention all anomalies clearly with specific values. Do not repeat the same student twice.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        -140
+      ],
+      "id": "2a4bc38f-5653-4e8d-a129-995a33116abb",
+      "name": "Anomaly Detection"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a college academic analyst.\n\nBased on the provided summary statistics:\n- Average Placement %: {{ $json['average_placement'] }}%\n- Average Attendance %: {{ $json['average_attendance'] }}%\n- Average Form Score: {{ $json['average_formscore'] }}%\n- Total Students Analyzed: {{ $json['student_count'] }}\n\nWrite a short, professional summary of the overall student performance for this batch.\n\nFocus on:\n- General performance trend\n- Strengths and concerns\n- Any early recommendation if needed\n\nKeep it under 100 words in a formal tone.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        900,
+        -60
+      ],
+      "id": "1c5d0e12-fe8c-469b-8449-2b64ec7e8584",
+      "name": "Summary"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Subject: Weekly Student Performance Dashboard and Insights\n\nHi Sir,\n\nHope you're doing well.\n\nPlease find below the link to this week’s consolidated student performance dashboard:\n\n📊 [Click to View Live Dashboard](https://lookerstudio.google.com/s/lSTv6pb_stw)\n\nThis dashboard includes:\n- Placement %, Attendance %, and Form Response Scores\n- Department-wise performance trends\n- Date-wise insights and comparisons\n- Automated anomaly flags for low scores or sudden drops\n\n🔍 **Summary of AI-generated insights:**\n{{ $('Summary').item.json.output }}\n\n⚠️ **Anomalies or Flags Detected:**\n{{ $('Anomaly Detection').item.json.output }}\n\nThis data is updated live and reflects the most recent inputs from our integrated workflow. Kindly review the information and let us know if any further actions or support are required.\n\nBest regards,  \nKarthik Raja  \nData Analyst – Admissions & Analytics  \nSNSINSTUTION\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        -100
+      ],
+      "id": "6be6d0c2-1f51-46fc-a12f-05e460b3f837",
+      "name": "Email"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "e7a96c20-be29-496e-9d61-95c716d9334d",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        60
+      ],
+      "id": "b878ade2-3f1a-4984-b092-3a8f7578efbd",
+      "name": "Webhook",
+      "webhookId": "e7a96c20-be29-496e-9d61-95c716d9334d"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1fyl8t9veioi4wQUtGbN2RLbGkianEJApaHbxaDUY6Ms",
+          "mode": "list",
+          "cachedResultName": "n8nhack",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1fyl8t9veioi4wQUtGbN2RLbGkianEJApaHbxaDUY6Ms/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "hack",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1fyl8t9veioi4wQUtGbN2RLbGkianEJApaHbxaDUY6Ms/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        160,
+        -160
+      ],
+      "id": "7daa2e58-d80e-49c5-9447-bfa8ec897a63",
+      "name": "Google Sheets2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "oOtWNPPBK9HlEYwd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "da7.iqac@snsgroups.com",
+        "subject": "Weekly Student Insights & Alerts",
+        "emailType": "text",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1960,
+        -100
+      ],
+      "id": "e69c5da6-3e05-45d4-9c83-c0cad0831c8f",
+      "name": "Gmail",
+      "webhookId": "a7236e99-c541-42ee-869a-d63799e89ef3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WNeEBDI8BqfmiQlL",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean data": {
+      "main": [
+        [
+          {
+            "node": "Calculate Averages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Averages": {
+      "main": [
+        [
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summary",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Anomaly Detection",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary": {
+      "main": [
+        [
+          {
+            "node": "Anomaly Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anomaly Detection": {
+      "main": [
+        [
+          {
+            "node": "Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets2": {
+      "main": [
+        [
+          {
+            "node": "Clean data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "aa830f50-9e48-41c0-bfa5-1c8306605de4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1350f504f3a46be970be19e1b0b145b770b165e5ead59e1b38732ed850d235f4"
+  },
+  "id": "u9YtcwR2bBGeymTD",
+  "tags": []
+}
